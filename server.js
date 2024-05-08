@@ -1,16 +1,26 @@
 import express from "express";
 import mysql from "mysql"
 import cors from "cors"
+import session from "express-session";
 
 const app = express();
 app.use(cors());
 app.use(express.json())
+
+app.use(session({
+    secret: 'secret',
+    resave: true,
+    saveUninitialized: true
+}));
+
+
 const db = mysql.createConnection({
     host: "bqsntoka9w8mvuzkgdxp-mysql.services.clever-cloud.com",
     user: "uwvlxaoj72qmga79",
     password: "GlJ6rfXqMVkzgglQystC",
     database: "bqsntoka9w8mvuzkgdxp"
 })
+
 
 app.get('/', (req, res) => {
     const sql = "SELECT * FROM booking";
@@ -33,23 +43,34 @@ app.post('/users', (req, res) => {
 
     ]
     db.query(sql, [vlaues], (err, result) => {
-        if (err) return res.json(err);
-        return res.json(result);
+        if (err) return res.json({ Message: "Error" });
+        return res.json({ Message: "Sign up Successful" });
     })
 })
 app.post('/users', (req, res) => {
-    const sql = "SELECT * FROM users WHERE usermail = 'email' && password = 'password'";
-    console.log(req.body);
+    const sql = "SELECT * FROM users WHERE usermail = ? AND password = ?";
     const vlaues = [
         req.body.email,
         req.body.password
 
     ]
     db.query(sql, [vlaues], (err, result) => {
-        if (err) return res.json(err);
-        return res.json(result);
-    })
+        if (err) {
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        if (result.length > 0) {
+            req.session.loggedin = true;
+            req.session.first = req.body.first;
+            res.status(200).json({ message: 'Login successful' });
+        } else {
+            res.status(401).json({ error: 'Incorrect username and/or password' });
+        }
+    });
+
 })
+
 
 app.post('/booking', (req, res) => {
     const sql = "INSERT INTO booking (`userfrom`,`userto`,`family`,`seatno`,`payment`) VALUES (?)";
@@ -77,6 +98,7 @@ app.get('/booking/:id', (req, res) => {
         return res.json(result);
     })
 })
+
 
 
 app.listen(3306, () => {
